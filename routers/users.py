@@ -5,7 +5,7 @@ from models import User, Booking
 from auth import get_current_user
 from schemas import UserResponse, BookingResponse
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter()
 
 def get_db():
     db = SessionLocal()

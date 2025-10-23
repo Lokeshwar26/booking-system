@@ -12,10 +12,10 @@ app = FastAPI(
 )
 
 # Include routers
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(bookings.router)
+app.include_router(auth.router,prefix="/auth", tags=["authentication"])
+app.include_router(users.router,prefix="/users", tags=["users"])
+app.include_router(bookings.router,prefix="/bookings", tags=["bookings"])
 
 @app.get("/")
 def root():
-    return {"message": "Booking Platform API"}
+    return {"message": "Booking Platform API"} 

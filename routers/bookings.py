@@ -5,7 +5,7 @@ from models import Booking, User
 from auth import get_current_user, get_current_admin
 from schemas import BookingCreate, BookingWithUser, MessageResponse, UserResponse
 
-router = APIRouter(prefix="/bookings", tags=["bookings"])
+router = APIRouter()
 
 def get_db():
     db = SessionLocal()
