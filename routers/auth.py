@@ -6,7 +6,7 @@ from models import User
 from auth import get_password_hash, verify_password, create_access_token
 from schemas import UserCreate, Token, MessageResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 def get_db():
     db = SessionLocal()
@@ -22,7 +22,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create new user with default role "user"
+    # Create new user
     hashed_password = get_password_hash(user.password)
     db_user = User(
         email=user.email,
@@ -40,7 +40,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == form_data.username).first()
     if not db_user or not verify_password(form_data.password, db_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+        raise HTTPException(status_code=400, detail="Incorrect email or password")
     
     access_token = create_access_token(data={"sub": db_user.email})
     return Token(access_token=access_token, token_type="bearer")

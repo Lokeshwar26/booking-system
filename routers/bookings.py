@@ -3,9 +3,9 @@ from database import SessionLocal
 from sqlalchemy.orm import Session, joinedload
 from models import Booking, User
 from auth import get_current_user, get_current_admin
-from schemas import BookingCreate, BookingWithUser, MessageResponse, UserResponse
+from schemas import BookingCreate, BookingUpdate, BookingResponse, BookingWithUser, MessageResponse, DeleteResponse, UserResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 def get_db():
     db = SessionLocal()
@@ -32,7 +32,7 @@ def create_booking(
     db.refresh(db_booking)
     return MessageResponse(message="Booking created", booking_id=db_booking.id)
 
-@router.get("/", response_model=list[BookingWithUser])
+@router.get("/adminview", response_model=list[BookingWithUser])
 def get_all_bookings(
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
@@ -61,3 +61,63 @@ def get_all_bookings(
         booking_list.append(booking_data)
     
     return booking_list
+
+@router.get("/{booking_id}", response_model=BookingResponse)
+def get_booking(
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    # Users can only see their own bookings, admins can see all
+    if current_user.role == "user" and booking.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    return booking
+
+@router.put("/{booking_id}", response_model=MessageResponse)
+def update_booking(
+    booking_id: int,
+    booking_update: BookingUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    # Users can only update their own bookings, admins can update all
+    if current_user.role == "user" and booking.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # Update only provided fields
+    update_data = booking_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(booking, field, value)
+    
+    db.commit()
+    db.refresh(booking)
+    
+    return MessageResponse(message="Booking updated successfully")
+
+@router.delete("/{booking_id}", response_model=DeleteResponse)
+def delete_booking(
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    # Users can only delete their own bookings, admins can delete all
+    if current_user.role == "user" and booking.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    db.delete(booking)
+    db.commit()
+    
+    return DeleteResponse(message="Booking deleted successfully", deleted_id=booking_id)

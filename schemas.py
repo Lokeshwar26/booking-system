@@ -12,6 +12,11 @@ class UserCreate(UserBase):
     password: str
     role: str = "user"
 
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+
 class UserResponse(UserBase):
     id: int
     
@@ -27,6 +32,12 @@ class BookingBase(BaseModel):
 
 class BookingCreate(BookingBase):
     pass
+
+class BookingUpdate(BaseModel):
+    room_type: Optional[str] = None
+    check_in: Optional[datetime] = None
+    check_out: Optional[datetime] = None
+    guests: Optional[int] = None
 
 class BookingResponse(BookingBase):
     id: int
@@ -53,3 +64,7 @@ class MessageResponse(BaseModel):
     message: str
     user_id: Optional[int] = None
     booking_id: Optional[int] = None
+
+class DeleteResponse(BaseModel):
+    message: str
+    deleted_id: int
