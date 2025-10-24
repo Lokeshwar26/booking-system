@@ -8,8 +8,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Booking Platform API",
-    description="A booking platform with role-based authentication",
-    version="1.0.0"
+    description="A booking platform with role-based authentication"
 )
 
 # Include routers

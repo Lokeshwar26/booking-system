@@ -39,6 +39,11 @@ class BookingUpdate(BaseModel):
     check_out: Optional[datetime] = None
     guests: Optional[int] = None
 
+# User can only update room_type and guests (check_in and check_out are hidden)
+class UserBookingUpdate(BaseModel):
+    room_type: Optional[str] = None
+    guests: Optional[int] = None
+
 class BookingResponse(BookingBase):
     id: int
     user_id: int
@@ -47,7 +52,7 @@ class BookingResponse(BookingBase):
     class Config:
         from_attributes = True
 
-# Booking with user details (for admin)
+# Booking with user details (for admin only)
 class BookingWithUser(BookingResponse):
     user: UserResponse
 
