@@ -19,6 +19,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -39,7 +40,7 @@ class BookingUpdate(BaseModel):
     check_out: Optional[datetime] = None
     guests: Optional[int] = None
 
-# User can only update room_type and guests (check_in and check_out are hidden)
+# User can only update room_type and guests
 class UserBookingUpdate(BaseModel):
     room_type: Optional[str] = None
     guests: Optional[int] = None
@@ -48,6 +49,8 @@ class BookingResponse(BookingBase):
     id: int
     user_id: int
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    updated_by: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -60,9 +63,6 @@ class BookingWithUser(BookingResponse):
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-class TokenData(BaseModel):
-    email: Optional[str] = None
 
 # Response Schemas
 class MessageResponse(BaseModel):

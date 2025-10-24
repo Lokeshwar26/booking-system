@@ -10,7 +10,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
-    role = Column(String(50), default="user")
+    role = Column(String(50), default="user")  # user, admin, superadmin
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     bookings = relationship("Booking", back_populates="user")
@@ -25,5 +25,7 @@ class Booking(Base):
     guests = Column(Integer, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_by = Column(String(50))  # Track who made the update
     
     user = relationship("User", back_populates="bookings")
