@@ -6,7 +6,7 @@ from auth import get_current_user, get_current_admin, get_current_superadmin
 from schemas import BookingCreate, BookingUpdate, BookingResponse, BookingWithUser, MessageResponse, DeleteResponse, UserResponse, UserBookingUpdate
 from datetime import datetime
 
-router = APIRouter(prefix="/bookings", tags=["bookings"])
+router = APIRouter()
 
 def get_db():
     db = SessionLocal()

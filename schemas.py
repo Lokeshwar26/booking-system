@@ -59,6 +59,18 @@ class BookingResponse(BookingBase):
 class BookingWithUser(BookingResponse):
     user: UserResponse
 
+# OTP Schemas
+class OTPRequestCreate(BaseModel):
+    action_type: str  # delete_account
+
+class OTPVerify(BaseModel):
+    otp_code: str
+
+class OTPResponse(BaseModel):
+    message: str
+    otp_id: int
+    otp_code: str
+
 # Token Schemas
 class Token(BaseModel):
     access_token: str

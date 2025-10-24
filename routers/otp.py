@@ -3,12 +3,11 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from database import SessionLocal
 from sqlalchemy.orm import Session
-from models import OTPRequest, User, Booking
+from models import OTPRequest, User
 from auth import get_current_user
-from schemas import OTPRequestCreate, OTPResponse, OTPVerify, MessageResponse, OTPRequestResponse
-from utils.email_service import email_service
+from schemas import OTPRequestCreate, OTPResponse, OTPVerify, MessageResponse
 
-router = APIRouter(prefix="/otp", tags=["otp-verification"])
+router = APIRouter()
 
 def get_db():
     db = SessionLocal()
@@ -17,30 +16,35 @@ def get_db():
     finally:
         db.close()
 
-# User requests OTP - System automatically sends it via email/SMS
-@router.post("/request", response_model=OTPResponse)
-def request_otp(
-    otp_request: OTPRequestCreate,
+def send_otp_notification(user_email: str, user_name: str, otp_code: str, action_type: str):
+    """Simulate OTP notification (replace with actual email/SMS in production)"""
+    print("=" * 60)
+    print("🔐 ACCOUNT DELETION OTP VERIFICATION")
+    print("=" * 60)
+    print(f"👤 User: {user_name}")
+    print(f"📧 Email: {user_email}")
+    print(f"🚨 Action: {action_type.upper()}")
+    print(f"🔢 OTP Code: {otp_code}")
+    print(f"⏰ Valid for: 10 minutes")
+    print("=" * 60)
+    print("💡 In production, this OTP would be sent via email/SMS")
+    print("=" * 60)
+    return True
+
+# User requests OTP for account deletion
+@router.post("/request-account-deletion", response_model=OTPResponse)
+def request_account_deletion_otp(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Check if booking exists and belongs to user
-    booking = db.query(Booking).filter(Booking.id == otp_request.booking_id).first()
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    
-    if booking.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
     # Generate 6-digit OTP
     otp_code = str(secrets.randbelow(999999)).zfill(6)
     
-    # Create OTP request (expires in 10 minutes)
+    # Create OTP request for account deletion (expires in 10 minutes)
     db_otp = OTPRequest(
         user_id=current_user.id,
-        booking_id=otp_request.booking_id,
         otp_code=otp_code,
-        action_type=otp_request.action_type,
+        action_type="delete_account",
         expires_at=datetime.utcnow() + timedelta(minutes=10)
     )
     
@@ -48,105 +52,46 @@ def request_otp(
     db.commit()
     db.refresh(db_otp)
     
-    # Automatically send OTP to user's email
-    email_service.send_otp_email(
+    # Send OTP notification
+    send_otp_notification(
         user_email=current_user.email,
         user_name=current_user.full_name,
         otp_code=otp_code,
-        action_type=otp_request.action_type
+        action_type="delete_account"
     )
     
-    # Optionally send SMS (if user has phone number)
-    # email_service.send_sms_otp("+1234567890", otp_code, otp_request.action_type)
-    
     return OTPResponse(
-        message=f"OTP sent to your registered email ({current_user.email}). Please check your inbox.",
+        message="OTP sent to your registered email for account deletion verification.",
         otp_id=db_otp.id,
         otp_code=otp_code  # Keep for demo, remove in production
     )
 
-# User verifies their own OTP (no admin needed)
-@router.post("/verify", response_model=MessageResponse)
-def verify_otp(
+# User verifies OTP for account deletion
+@router.post("/verify-account-deletion", response_model=MessageResponse)
+def verify_account_deletion_otp(
     otp_verify: OTPVerify,
-    current_user: User = Depends(get_current_user),  # User verifies their own OTP
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Find OTP request
+    # Find OTP request for account deletion
     otp_request = db.query(OTPRequest).filter(
         OTPRequest.otp_code == otp_verify.otp_code,
-        OTPRequest.booking_id == otp_verify.booking_id,
+        OTPRequest.action_type == "delete_account",
         OTPRequest.is_used == False,
-        OTPRequest.user_id == current_user.id  # User can only verify their own OTPs
+        OTPRequest.user_id == current_user.id
     ).first()
     
     if not otp_request:
-        raise HTTPException(status_code=404, detail="Invalid OTP or booking ID")
+        raise HTTPException(status_code=404, detail="Invalid OTP")
     
     # Check if OTP expired
     if datetime.utcnow() > otp_request.expires_at:
         raise HTTPException(status_code=400, detail="OTP has expired")
     
-    # Mark OTP as used (auto-approved by system)
+    # Mark OTP as used
     otp_request.is_used = True
-    otp_request.approved_by = "system"  # Auto-approved
-    
     db.commit()
     
     return MessageResponse(
-        message=f"OTP verified successfully! You can now {otp_request.action_type} your booking."
-    )
-
-# User can check their pending OTPs
-@router.get("/my-pending", response_model=list[OTPRequestResponse])
-def get_my_pending_otps(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    pending_requests = db.query(OTPRequest).filter(
-        OTPRequest.user_id == current_user.id,
-        OTPRequest.is_used == False,
-        OTPRequest.expires_at > datetime.utcnow()
-    ).all()
-    
-    return pending_requests
-
-# Resend OTP
-@router.post("/resend/{otp_id}", response_model=OTPResponse)
-def resend_otp(
-    otp_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    otp_request = db.query(OTPRequest).filter(
-        OTPRequest.id == otp_id,
-        OTPRequest.user_id == current_user.id,
-        OTPRequest.is_used == False
-    ).first()
-    
-    if not otp_request:
-        raise HTTPException(status_code=404, detail="OTP request not found")
-    
-    # Generate new OTP
-    new_otp_code = str(secrets.randbelow(999999)).zfill(6)
-    
-    # Update OTP
-    otp_request.otp_code = new_otp_code
-    otp_request.expires_at = datetime.utcnow() + timedelta(minutes=10)
-    otp_request.created_at = datetime.utcnow()
-    
-    db.commit()
-    
-    # Resend email
-    email_service.send_otp_email(
-        user_email=current_user.email,
-        user_name=current_user.full_name,
-        otp_code=new_otp_code,
-        action_type=otp_request.action_type
-    )
-    
-    return OTPResponse(
-        message=f"New OTP sent to your email ({current_user.email})",
-        otp_id=otp_request.id,
-        otp_code=new_otp_code  # Keep for demo
+        message="OTP verified successfully. You can now delete your account."
     )
